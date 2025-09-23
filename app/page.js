@@ -1,76 +1,76 @@
-// src/app/page.js
-'use client';
+"use client";
 import { useState } from "react";
 
-export default function Page(){
-  const [q, setQ] = useState("");
+export default function ProblemListPage() {
+  const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
-  const [message, setMessage] = useState("");
-  const [bundleJson, setBundleJson] = useState(null);
+  const [selected, setSelected] = useState(null);
 
-  async function search(){
-    if (!q) return;
-    const res = await fetch(`/api/autocomplete?q=${encodeURIComponent(q)}`);
+  async function handleSearch(e) {
+    e.preventDefault();
+    const res = await fetch(`/api/search?q=${query}`);
     const data = await res.json();
-    setResults(data || []);
+    setResults(data);
   }
 
-  async function saveAsBundle(item){
-    // create a minimal FHIR bundle using patient dummy data
-    const bundle = {
-      resourceType: "Bundle",
-      type: "collection",
-      entry: [
-        { resource: { resourceType: "Patient", id: "demo-patient-1", name:[{text:"Demo Patient"}] } },
-        {
-          resource: {
-            resourceType: "Condition",
-            id: `cond-${Date.now()}`,
-            code: {
-              coding: [
-                { system: "NAMASTE", code: item.code, display: item.display },
-                ...(item.mapped ? [{ system: "ICD11", code: item.mapped.targetCode, display: item.mapped.display }] : [])
-              ]
-            },
-            clinicalStatus: { text: "active" }
-          }
-        }
-      ]
-    };
-    const res = await fetch('/api/bundle', {
-      method:'POST', headers:{ 'Content-Type':'application/json','authorization':'Bearer demo-token' }, body: JSON.stringify({ bundle, user: "demo-doctor" })
+  async function handleSave(item) {
+    const res = await fetch("/api/problem-list", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        patientId: "demo-patient",
+        namaste: item.namaste,
+        mappings: item.mappings,
+      }),
     });
-    const j = await res.json();
-    setMessage(j.message || 'saved');
-    setBundleJson(j.saved || null);
+    const data = await res.json();
+    alert("✅ Saved to ProblemList");
+    setSelected(item);
   }
 
   return (
-    <div>
-      <div className="card">
-        <h2>Clinician Sandbox</h2>
-        <div>
-          <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search NAMASTE or ICD term..." />
-          <button onClick={search}>Search</button>
-        </div>
-        <div style={{ marginTop: 12 }}>
-          {results.length===0 ? <p>No results yet</p> : results.map(r=>(
-            <div key={r.code} style={{ padding:8, borderBottom:"1px solid #eee" }}>
-              <b>{r.display}</b> <small>({r.system}:{r.code})</small>
-              <div>
-                {r.mapped && <span style={{ marginRight:8 }}>→ ICD: {r.mapped.targetCode} / {r.mapped.display}</span>}
-                <button onClick={()=>saveAsBundle(r)}>Add to Patient (create FHIR Bundle)</button>
-              </div>
-            </div>
-          ))}
-        </div>
-        {message && <div style={{ marginTop:12 }}>{message}</div>}
-      </div>
+    <div className="p-6 max-w-2xl mx-auto">
+      <h1 className="text-xl font-bold mb-4">Add Problem (NAMASTE + ICD)</h1>
 
-      <div style={{ marginTop: 20 }} className="card">
-        <h3>Last saved bundle (DB)</h3>
-        <pre>{bundleJson ? JSON.stringify(bundleJson, null, 2) : "No bundle saved yet."}</pre>
-      </div>
+      <form onSubmit={handleSearch} className="flex gap-2 mb-4">
+        <input
+          type="text"
+          placeholder="Search NAMASTE term..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="border p-2 flex-1 rounded"
+        />
+        <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">
+          Search
+        </button>
+      </form>
+
+      <ul className="space-y-3">
+        {results.map((item, idx) => (
+          <li key={idx} className="border p-3 rounded">
+            <div>
+              <strong>NAMASTE:</strong> {item.namaste.display} ({item.namaste.code})
+            </div>
+            <div className="ml-4">
+              <strong>Mappings:</strong>
+              <ul className="list-disc ml-6">
+                {item.mappings.map((m, i) => (
+                  <li key={i}>
+                    [{m.system}] {m.display} ({m.code})
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <button
+              onClick={() => handleSave(item)}
+              className="mt-2 bg-green-500 text-white px-3 py-1 rounded"
+            >
+              ➕ Add to ProblemList
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
+
