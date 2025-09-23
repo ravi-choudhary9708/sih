@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import User from "@/models/User.js";
+
+import Patient from "@/models/Patient";
 import { connectDB } from "@/lib/mongoose";
 
 export async function POST(req) {
@@ -9,7 +10,7 @@ export async function POST(req) {
     const { abhaId, password } = await req.json();
     await connectDB();
 
-    const user = await User.findOne({ abhaId });
+    const user = await Patient.findOne({ abhaId });
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
     const isValid = await bcrypt.compare(password, user.password);

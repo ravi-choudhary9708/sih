@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useEffect,use } from "react";
+import { useState, useEffect, use } from "react";
 
 export default function PatientDashboard({ params }) {
-    const resolvedparams= use(params)
+  const resolvedparams = use(params);
   const patientId = resolvedparams.id; // URL param /patient/[id]
   const [problems, setProblems] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Fetch patient problems
   useEffect(() => {
     async function fetchProblems() {
       setLoading(true);
@@ -26,6 +27,28 @@ export default function PatientDashboard({ params }) {
     fetchProblems();
   }, [patientId]);
 
+  // Update consent
+  async function handleConsent(problemId, given) {
+    try {
+      const res = await fetch(`/api/problem/${problemId}/consent`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ consent: { given } }),
+      });
+
+      if (!res.ok) throw new Error("Failed to update consent");
+
+      const updated = await res.json();
+
+      // Update local state
+      setProblems((prev) =>
+        prev.map((p) => (p._id === problemId ? { ...p, consent: updated.consent } : p))
+      );
+    } catch (err) {
+      console.error("Consent update failed:", err);
+    }
+  }
+
   return (
     <div className="max-w-4xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-6">Patient Problem List</h1>
@@ -37,7 +60,6 @@ export default function PatientDashboard({ params }) {
       ) : (
         <ul className="space-y-4">
           {problems.map((p) => {
-            // Extract NAMASTE code
             const namasteCode = p.codes?.find((c) => c.system === "NAMASTE");
 
             return (
@@ -54,6 +76,30 @@ export default function PatientDashboard({ params }) {
                 <div>
                   <strong>Onset:</strong>{" "}
                   {new Date(p.onsetDateTime).toLocaleString()}
+                </div>
+
+                <div className="mt-2">
+                  <strong>Consent:</strong>{" "}
+                  {p.consent?.given ? (
+                    <span className="text-green-600 font-medium">Given ✅</span>
+                  ) : (
+                    <span className="text-red-600 font-medium">Not Given ❌</span>
+                  )}
+                </div>
+
+                <div className="mt-2">
+                  <button
+                    onClick={() => handleConsent(p._id, true)}
+                    className="bg-green-500 text-white px-3 py-1 rounded mr-2"
+                  >
+                    Give Consent
+                  </button>
+                  <button
+                    onClick={() => handleConsent(p._id, false)}
+                    className="bg-red-500 text-white px-3 py-1 rounded"
+                  >
+                    Revoke Consent
+                  </button>
                 </div>
 
                 <div className="mt-2">

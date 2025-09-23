@@ -8,14 +8,20 @@ export async function POST(req) {
     const body = await req.json();
 
     const problem = await Problem.create({
-      patientId: body.patientId || "demo-patient", // replace with ABHA later
-      namaste: body.namaste,
-      mappings: body.mappings || []
+      patientId: body.patientId || "demo-patient", // fallback for now
+      codes: body.codes || [],                     // NAMASTE + ICD codes
+      mappings: body.mappings || [],               // ICD11 mappings
+      clinicalStatus: body.clinicalStatus || "active",
+      onsetDateTime: body.onsetDateTime || new Date(),
+      recordedBy: body.recordedBy || "system",
+      consent: body.consent || { given: false },   // take from body
     });
+
+    console.log("✅ Problem saved:", problem);
 
     return NextResponse.json({ message: "Problem saved", problem });
   } catch (err) {
-    console.error("ProblemList save error:", err);
+    console.error("❌ ProblemList save error:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

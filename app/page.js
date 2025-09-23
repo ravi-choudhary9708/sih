@@ -1,10 +1,32 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { getPatientIdFromToken } from "@/utils/auth";
 
 export default function ProblemListPage() {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [selected, setSelected] = useState(null);
+  const [patientId, setPatientId] = useState(null);
+
+  useEffect(() => {
+  async function getMe() {
+    try {
+      const res = await fetch("/api/me");
+      const data = await res.json();
+      if (!data.patient) {
+        router.push("/login");
+      } else {
+        setPatientId(data.patient._id);
+      }
+    } catch (err) {
+      router.push("/login");
+    }
+  }
+
+  getMe();
+}, []);
 
   async function handleSearch(e) {
     e.preventDefault();
@@ -14,11 +36,13 @@ export default function ProblemListPage() {
   }
 
   async function handleSave(item) {
+    if (!patientId) return;
+
     const res = await fetch("/api/problem-list", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        patientId: "demo-patient",
+        patientId,
         namaste: item.namaste,
         mappings: item.mappings,
       }),
@@ -31,6 +55,16 @@ export default function ProblemListPage() {
   return (
     <div className="p-6 max-w-2xl mx-auto">
       <h1 className="text-xl font-bold mb-4">Add Problem (NAMASTE + ICD)</h1>
+
+      {/* Go to Dashboard Button */}
+      {patientId && (
+        <button
+          onClick={() => router.push(`/patient/${patientId}`)}
+          className="mb-4 bg-purple-500 text-white px-4 py-2 rounded"
+        >
+          🏠 Go to Dashboard
+        </button>
+      )}
 
       <form onSubmit={handleSearch} className="flex gap-2 mb-4">
         <input
@@ -73,4 +107,3 @@ export default function ProblemListPage() {
     </div>
   );
 }
-

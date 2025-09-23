@@ -10,7 +10,7 @@ const CodingSchema = new mongoose.Schema(
 );
 
 const ProblemSchema = new mongoose.Schema({
-  patientId: { type: mongoose.Schema.Types.ObjectId, ref: "Patient", required: true },
+   patientId: { type: mongoose.Schema.Types.ObjectId, ref: "Patient", required: true },
   codes: [CodingSchema],  // multiple codings for dual coding
   clinicalStatus: { type: String, default: "active" }, // FHIR Condition.clinicalStatus
   onsetDateTime: { type: Date, default: Date.now },    // when diagnosis was recorded
@@ -24,6 +24,12 @@ const ProblemSchema = new mongoose.Schema({
       system: String, // ICD11-MMS or ICD11-TM2
     }
   ],
+   consent: {
+    given: { type: Boolean, default: false }, // patient consent
+    givenAt: { type: Date },
+    givenBy: { type: String }, // patient ID / representative
+    purpose: { type: String, default: "treatment" }, // e.g., treatment, insurance, research
+  },
   onsetDateTime: { type: Date, default: Date.now },
 });
 
