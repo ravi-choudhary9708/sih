@@ -3,31 +3,10 @@ import { connectDB } from "@/lib/mongoose";
 import Code from "@/models/Code";
 import ConceptMap from "@/models/ConceptMap";
 import { parse } from "csv-parse/sync";
+import { searchICD } from "@/utils/icd";
 
-// WHO ICD-11 Search API
-async function searchICD(term) {
-  const url = `https://id.who.int/icd/entity/search?q=${encodeURIComponent(
-    term
-  )}&linearization=tm2`;
-
-  try {
-    const res = await fetch(url, { headers: { Accept: "application/json" } });
-    if (!res.ok) {
-      console.error("WHO API error:", res.status);
-      return [];
-    }
-    const data = await res.json();
-
-    // Simplify results (take first 1–2 matches only)
-    return (data.destinationEntities || []).slice(0, 2).map((item) => ({
-      code: item.id,
-      display: item.title?.["@value"] || "No Title",
-    }));
-  } catch (err) {
-    console.error("WHO ICD fetch failed:", err);
-    return [];
-  }
-}
+// Delay helper
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export async function POST(req) {
   try {
@@ -47,38 +26,56 @@ export async function POST(req) {
 
     let linkedCount = 0;
 
-    for (const r of records) {
+    for (const row of records) {
       // Insert/update NAMASTE code
       await Code.updateOne(
-        { system: "NAMASTE", code: r.code },
+        { system: "NAMASTE", code: row.NAMC_CODE },
         {
           $set: {
-            display: r.term,
-            description: r.description || "",
+            display: row.NAMC_term,
+            display_diacritical: row.NAMC_term_diacritical,
+            display_devanagari: row.NAMC_term_DEVANAGARI,
+            short_description: row.Short_definition,
+            long_description: row.Long_definition,
+            ontology: row.Ontology_branches,
+            alt_names: {
+              english: row["Name English"],
+              under_index: row["Name English Under Index"],
+              primary_related: row["Primary Index Related"],
+            },
             version: "uploaded",
           },
         },
         { upsert: true }
       );
 
-      // Auto-link with ICD-11 (TM2/biomedicine)
-      const matches = await searchICD(r.term);
-      if (matches.length > 0) {
+      // 🔍 Auto-link with ICD-11 TM2 + MMS
+      const matchesTM2 = await searchICD(row.NAMC_term, "tm2");
+      const matchesMMS = await searchICD(row.NAMC_term, "mms");
+
+      const targets = [
+        ...matchesTM2.map((m) => ({ ...m, system: "ICD11-TM2" })),
+        ...matchesMMS.map((m) => ({ ...m, system: "ICD11-MMS" })),
+      ];
+
+      if (targets.length > 0) {
         linkedCount++;
 
-        // Save concept map (overwrite if exists)
         await ConceptMap.updateOne(
-          { sourceCode: r.code, system: "NAMASTE" },
+          { sourceCode: row.NAMC_CODE, sourceSystem: "NAMASTE" },
           {
             $set: {
-              sourceDisplay: r.term,
-              targets: matches,
+              sourceDisplay: row.NAMC_term,
+              targets,
               updatedAt: new Date(),
             },
           },
           { upsert: true }
         );
       }
+
+      // Small delay to prevent throttling
+      await sleep(100);
     }
 
     return NextResponse.json({
