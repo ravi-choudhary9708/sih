@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getPatientIdFromToken } from "@/utils/auth";
+import { Search, Home, Plus, Stethoscope, Code, FileText } from "lucide-react";
 
 export default function ProblemListPage() {
   const router = useRouter();
@@ -9,7 +9,7 @@ export default function ProblemListPage() {
   const [results, setResults] = useState([]);
   const [selected, setSelected] = useState(null);
   const [patientId, setPatientId] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     async function getMe() {
@@ -27,184 +27,176 @@ export default function ProblemListPage() {
     }
 
     getMe();
-  }, []);
+  }, [router]);
 
   async function handleSearch(e) {
     e.preventDefault();
-    if (!query.trim()) return;
-    setLoading(true);
+    setIsLoading(true);
     try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+      const res = await fetch(`/api/search?q=${query}`);
       const data = await res.json();
       setResults(data);
-    } catch (err) {
-      console.error("Search error:", err);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   }
 
   async function handleSave(item) {
     if (!patientId) return;
 
-    try {
-      const res = await fetch("/api/problem-list", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          patientId,
-          namaste: item.namaste,
-          mappings: item.mappings,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        // Replace alert with a better notification (could be a toast)
-        setSelected(item);
-        // Simple inline success message for now
-        alert("✅ Successfully added to Problem List!");
-      } else {
-        alert("❌ Failed to save. Please try again.");
-      }
-    } catch (err) {
-      alert("❌ An error occurred. Please try again.");
-    }
+    const res = await fetch("/api/problem-list", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        patientId,
+        namaste: item.namaste,
+        mappings: item.mappings,
+      }),
+    });
+    const data = await res.json();
+    alert("✅ Saved to ProblemList");
+    setSelected(item);
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-white">
-      {/* Header */}
-      <header className="bg-white border-b border-orange-100 shadow-sm">
-        <div className="max-w-4xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-orange-800">
-              Add Health Condition
-            </h1>
-            {patientId && (
-              <button
-                onClick={() => router.push(`/patient/${patientId}`)}
-                className="flex items-center gap-2 bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-all duration-200 shadow-md hover:shadow-lg"
-                title="Go to Dashboard"
-              >
-                <span className="text-lg">🏠</span>
-                <span className="font-medium">Dashboard</span>
-              </button>
-            )}
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50">
+      <div className="max-w-4xl mx-auto px-6 py-8">
+        {/* Header Section */}
+        <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-8 mb-8">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="p-3 bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl text-white">
+              <Stethoscope className="w-6 h-6" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Problem List Manager</h1>
+              <p className="text-gray-600 mt-1">Add NAMASTE conditions with ICD mappings</p>
+            </div>
           </div>
-          <p className="text-orange-600 mt-1 text-sm">Search NAMASTE terms and ICD mappings</p>
-        </div>
-      </header>
 
-      <main className="max-w-4xl mx-auto px-6 py-8">
-        {/* Search Form */}
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 mb-8">
-          <form onSubmit={handleSearch} className="flex gap-3">
-            <div className="flex-1 relative">
+          {/* Dashboard Navigation */}
+          {patientId && (
+            <button
+              onClick={() => router.push(`/patient/${patientId}`)}
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white px-6 py-3 rounded-xl font-medium transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
+            >
+              <Home className="w-4 h-4" />
+              Go to Dashboard
+            </button>
+          )}
+        </div>
+
+        {/* Search Section */}
+        <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-6 mb-8">
+          <div className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Search for health conditions (e.g., 'diabetes', 'hypertension')..."
+                placeholder="Search for medical conditions and symptoms..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="w-full p-4 pl-12 pr-4 border border-orange-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 text-gray-800 placeholder-gray-500"
+                className="w-full pl-12 pr-4 py-4 border border-orange-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent text-gray-700 placeholder-gray-500 bg-orange-50/30"
+                onKeyPress={(e) => e.key === 'Enter' && handleSearch(e)}
               />
-              <svg
-                className="absolute left-4 top-1/2 transform -translate-y-1/2 text-orange-400 h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
             </div>
-            <button
-              type="submit"
-              disabled={loading || !query.trim()}
-              className="bg-orange-500 text-white px-8 py-4 rounded-xl hover:bg-orange-600 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-medium"
+            <button 
+              onClick={handleSearch}
+              disabled={isLoading}
+              className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 disabled:from-gray-400 disabled:to-gray-500 text-white py-4 rounded-xl font-medium transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-[1.02] disabled:transform-none disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {loading ? (
+              {isLoading ? (
                 <>
-                  <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                   Searching...
                 </>
               ) : (
                 <>
-                  🔍 Search
+                  <Search className="w-5 h-5" />
+                  Search Conditions
                 </>
               )}
             </button>
-          </form>
+          </div>
         </div>
 
-        {/* Results */}
-        {results.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="w-24 h-24 mx-auto mb-4 bg-orange-100 rounded-full flex items-center justify-center">
-              <svg className="w-12 h-12 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold text-orange-800 mb-2">No results found</h3>
-            <p className="text-gray-600">Try searching for a different health condition</p>
-          </div>
-        ) : (
-          <div className="grid gap-4">
-            {results.map((item, idx) => (
-              <div
-                key={idx}
-                className="bg-white border border-orange-100 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden"
-              >
-                {/* Header */}
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-orange-800 mb-1">
-                      {item.namaste.display}
-                    </h3>
-                    <p className="text-sm text-orange-600 bg-orange-50 px-2 py-1 rounded-full inline-block">
-                      NAMASTE Code: {item.namaste.code}
-                    </p>
+        {/* Results Section */}
+        <div className="space-y-4">
+          {results.map((item, idx) => (
+            <div 
+              key={idx} 
+              className={`bg-white rounded-2xl shadow-sm border transition-all duration-200 hover:shadow-md ${
+                selected === item ? 'border-orange-300 bg-orange-50/50' : 'border-orange-100 hover:border-orange-200'
+              }`}
+            >
+              <div className="p-6">
+                {/* NAMASTE Section */}
+                <div className="mb-6">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 bg-gradient-to-r from-orange-500 to-amber-500 rounded-lg text-white">
+                      <FileText className="w-4 h-4" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900">NAMASTE Condition</h3>
                   </div>
-                  <div className="flex-shrink-0 ml-4">
-                    <button
-                      onClick={() => handleSave(item)}
-                      className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors duration-200 font-medium shadow-sm hover:shadow-md flex items-center gap-2"
-                    >
-                      ➕ Add
-                    </button>
+                  <div className="bg-orange-50 rounded-xl p-4 border border-orange-100">
+                    <div className="font-medium text-gray-900 text-lg">{item.namaste.display}</div>
+                    <div className="text-orange-600 font-mono text-sm mt-1">Code: {item.namaste.code}</div>
                   </div>
                 </div>
 
-                {/* Mappings */}
-                {item.mappings && item.mappings.length > 0 && (
-                  <div className="bg-orange-50 rounded-lg p-4">
-                    <h4 className="font-medium text-orange-800 mb-3 flex items-center gap-2">
-                      <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                      </svg>
-                      ICD Mappings
-                    </h4>
-                    <div className="space-y-2">
-                      {item.mappings.map((m, i) => (
-                        <div key={i} className="flex items-center justify-between p-2 bg-white rounded-md border border-orange-200">
-                          <div className="flex items-center gap-3">
-                            <span className="text-sm font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded">{m.code}</span>
-                            <span className="text-sm text-gray-800">{m.display}</span>
-                          </div>
-                          <span className="text-xs text-orange-600 font-medium px-2 py-1 bg-orange-100 rounded-full">
-                            {m.system}
-                          </span>
-                        </div>
-                      ))}
+                {/* Mappings Section */}
+                <div className="mb-6">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 bg-gradient-to-r from-amber-500 to-orange-500 rounded-lg text-white">
+                      <Code className="w-4 h-4" />
                     </div>
+                    <h4 className="text-lg font-semibold text-gray-900">Standard Code Mappings</h4>
                   </div>
-                )}
+                  <div className="space-y-3">
+                    {item.mappings.map((mapping, i) => (
+                      <div key={i} className="bg-amber-50 rounded-xl p-4 border border-amber-100">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-medium text-gray-900">{mapping.display}</div>
+                            <div className="text-amber-600 font-mono text-sm mt-1">
+                              {mapping.system}: {mapping.code}
+                            </div>
+                          </div>
+                          <div className="px-3 py-1 bg-amber-200 text-amber-800 text-xs font-medium rounded-full">
+                            {mapping.system}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Action Button */}
+                <button
+                  onClick={() => handleSave(item)}
+                  className={`w-full flex items-center justify-center gap-2 py-4 px-6 rounded-xl font-medium transition-all duration-200 ${
+                    selected === item 
+                      ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                      : 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-md hover:shadow-lg transform hover:scale-[1.02]'
+                  }`}
+                >
+                  <Plus className="w-5 h-5" />
+                  {selected === item ? 'Added to Problem List ✓' : 'Add to Problem List'}
+                </button>
               </div>
-            ))}
+            </div>
+          ))}
+        </div>
+
+        {results.length === 0 && (
+          <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-12 text-center">
+            <div className="p-4 bg-orange-100 rounded-full w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+              <Search className="w-8 h-8 text-orange-600" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No Results Yet</h3>
+            <p className="text-gray-600">Search for medical conditions to view NAMASTE terms and their ICD mappings</p>
           </div>
         )}
-      </main>
+      </div>
     </div>
   );
 }
