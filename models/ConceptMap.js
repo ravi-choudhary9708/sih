@@ -1,19 +1,35 @@
 import mongoose from "mongoose";
 
-const TargetSchema = new mongoose.Schema({
-  code: { type: String, required: true },     // ICD entity URI
-  display: { type: String, required: true },  // ICD title
-  system: { type: String, enum: ["ICD11-TM2", "ICD11-MMS"], required: true }, // which linearization
-});
+// Target element schema (maps source code to target codes)
+const TargetElementSchema = new mongoose.Schema({
+  code: { type: String, required: true },         // ICD entity URI
+  display: { type: String, required: true },      // ICD title
+  equivalence: {                                  // FHIR equivalence: equivalent, wider, narrower, etc.
+    type: String,
+    enum: ["equivalent", "wider", "narrower", "inexact", "unmatched", "disjoint"],
+    default: "equivalent",
+  },
+  system: { type: String, enum: ["ICD11-TM2", "ICD11-MMS"], required: true },
+}, { _id: false });
 
-const ConceptMapSchema = new mongoose.Schema({
+// Group schema (to support multiple source/target systems)
+const ConceptMapGroupSchema = new mongoose.Schema({
   sourceSystem: { type: String, enum: ["NAMASTE"], required: true },
-  sourceCode: { type: String, required: true, index: true },
-  sourceDisplay: { type: String, required: true },
-  targets: [TargetSchema],                    // multiple mappings (TM2 + MMS)
-  updatedAt: { type: Date, default: Date.now },
-  
-});
+  targetSystem: { type: String, enum: ["ICD11-TM2", "ICD11-MMS"], required: true },
+  elements: [{
+    code: { type: String, required: true },        // Source code
+    display: { type: String, required: true },     // Source display
+    target: [TargetElementSchema],                 // List of target mappings
+  }]
+}, { _id: false });
 
-export default mongoose.models.ConceptMap ||
-  mongoose.model("ConceptMap", ConceptMapSchema);
+// Main ConceptMap schema
+const ConceptMapSchema = new mongoose.Schema({
+  name: { type: String, required: true },          // ConceptMap name
+  version: { type: String, default: "1.0.0" },     // Versioning
+  description: { type: String },                   // Optional description
+  groups: [ConceptMapGroupSchema],                // Multiple groups for source-target mappings
+  updatedAt: { type: Date, default: Date.now },
+}, { timestamps: true });
+
+export default mongoose.models.ConceptMap || mongoose.model("ConceptMap", ConceptMapSchema);

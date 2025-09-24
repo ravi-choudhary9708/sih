@@ -13,24 +13,33 @@ export async function GET(req) {
       return NextResponse.json({ error: "Missing ?q=term" }, { status: 400 });
     }
 
-    // fuzzy regex search in NAMASTE
+    // Find ConceptMaps where any element code or display matches the query (case-insensitive)
     const results = await ConceptMap.find({
-      sourceDisplay: { $regex: q, $options: "i" },
+      "groups.elements.display": { $regex: q, $options: "i" },
     })
-      .limit(15)
+      .limit(20)
       .lean();
 
-    // Format response for frontend autocomplete
-    const response = results.map((item) => ({
-      namaste: {
-        code: item.sourceCode,
-        display: item.sourceDisplay,
-      },
-      mappings: item.targets || [],
+    // Transform results for frontend autocomplete
+    const response = [];
 
-    }));
+    results.forEach((map) => {
+      map.groups.forEach((group) => {
+        group.elements.forEach((el) => {
+          if (el.display.toLowerCase().includes(q.toLowerCase())) {
+            response.push({
+              namaste: {
+                code: el.code,
+                display: el.display,
+              },
+              mappings: el.target || [],
+            });
+          }
+        });
+      });
+    });
 
-    return NextResponse.json(response);
+    return NextResponse.json(response.slice(0, 15)); // Limit results
   } catch (err) {
     console.error("Search error:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
